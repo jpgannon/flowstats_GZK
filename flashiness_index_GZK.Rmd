@@ -1,0 +1,83 @@
+---
+title: "Flashiness plots"
+output:
+  html_document:
+    df_print: paged
+  word_document: default
+---
+```{r}
+library(tidyverse)
+library(dataRetrieval)
+library(lubridate)
+
+datsum <- read_csv("dailystatsALL.csv")
+```
+
+```{r}
+# RBI 
+# RBI ... sum of abs value of change in discharge from day to day / total discharge for the year
+# http://web.epa.state.oh.us/dsw/nps/NPSMP/docs/JAWRA_03095_Baker.pdf
+
+#absolute value of change in discharge from day before
+QRBI <- datsum %>% group_by(site_no) %>%
+          mutate(deltaQmax = abs(maxDaily - lag(maxDaily, 1)),  #lag max discharge
+                 deltaQ = abs(meanDaily - lag(meanDaily, 1)),  #lag mean discharge
+                 deltaQmm = abs(maxDaily - lag(meanDaily, 1))) %>% #diff between max discharge and mean of day before
+          ungroup()
+
+#sum of delta Q by year and sum of discharge by year
+SumDQ <- QRBI %>% group_by(site_no, year(date)) %>%
+            summarize(sum(deltaQmax), sum(deltaQ), sum(deltaQmm), sum(meanDaily)) %>%
+            rename("year" = "year(date)", "deltaQ" = "sum(deltaQ)", 
+                   "deltaQmax" = "sum(deltaQmax)", "deltaQmm" = "sum(deltaQmm)", "meancfs" = "sum(meanDaily)") %>%
+            mutate(RBI = deltaQ / meancfs, RBImax = deltaQmax / meancfs, RBImm = deltaQmm / meancfs) %>%
+            ungroup()
+
+```
+
+```{r}
+SumDQranks <- SumDQ %>% group_by(site_no) %>% drop_na() %>%
+              summarize(mean(RBI), mean(RBImax), mean(RBImm)) %>%
+              rename("RBI"= "mean(RBI)", "RBImax" = "mean(RBImax)", "RBImm" = "mean(RBImm)") %>%
+              mutate(RBIrank = dense_rank(RBI), RBImaxrank = dense_rank(RBImax), RBImmrank = dense_rank(RBImm))
+```
+
+
+```{r, fig.height=15, fig.width=6}
+SumDQ %>%
+  ggplot(aes(x = site_no, y = RBI, fill = "RBI"))+
+    geom_boxplot() +
+    geom_boxplot(aes(x = site_no, y = RBImax, fill = "RBImax"))+
+    geom_boxplot(aes(x = site_no, y = RBImm, fill = "RBImax-mean"))+
+    ylim(c(0,5))+
+    coord_flip()+
+    theme_classic()+
+    scale_colour_manual(name = 'BFI type')
+    
+```
+```{r, fig.height=15, fig.width=6}
+SumDQ %>%
+  ggplot(aes(x = site_no, y = RBImax - RBI))+
+    geom_boxplot() +
+    geom_hline(yintercept = 0)+
+    coord_flip()+
+    theme_classic()
+    
+```
+```{r}
+SumDQ %>% filter(RBI < 5) %>%
+  ggplot(aes(x = RBI, y = RBImax))+
+    geom_point()+
+    theme_classic()
+   # xlim(c(0,1.5))
+    
+```
+
+```{r, fig.height=15, fig.width=6}
+SumDQranks %>%
+  ggplot(aes(RBIrank, reorder(site_no, RBIrank), color = "RBI rank"))+
+      geom_point()+
+      geom_point(aes(RBImaxrank, reorder(site_no, RBIrank), color = "RBI max rank"))
+  
+```
+

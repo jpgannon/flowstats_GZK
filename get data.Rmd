@@ -5,6 +5,7 @@ output: html_notebook
 ```{r}
 library(tidyverse)
 library(dataRetrieval)
+library(lubridate)
 ```
 
 Create table with available parameters and periods for each gage in NC lowdev dataset
@@ -21,8 +22,46 @@ bystation <- pivot_wider(available, id_cols = c("site_no","station_nm"), names_f
                          values_from = "parameter_nm",
                          values_fn = list(parameter_nm = length))
 
-#filter(available, parm_cd == "00095")
+#pull out sites that have instantaneous data available
+sites_inst <- bystation %>% select(site_no, 'Discharge, instantaneous, cubic feet per second') %>%
+  drop_na() %>% select(site_no)
 
-write_csv(bystation, "available_data_by_station.csv")
+write_csv(sites_inst, "sites_inst.csv")
 
 ```
+```{r}
+param <- "00060" #discharge
+#stat codes max 00001 min 00002 mean 00003
+stat <- "00003"
+
+data <- readNWISuv(siteNumbers = sites_inst$site_no, parameterCd = param, startDate = "2000-01-01", endDate = "2000-12-31")
+
+for(x in 2001:2010){
+  start <- paste(x,"-01-01", sep = '')
+  end <- paste(x, "-12-31", sep = '')
+  
+  
+  datanew <- readNWISuv(siteNumbers = sites_inst$site_no, parameterCd = param, startDate = start, endDate = end)
+  
+  data <- bind_rows(data, datanew)
+}
+
+write_csv(data, "inst_data_2000-2010.csv")
+```
+```{r}
+#create daily summaries
+#max #min #mean #median #sd #count
+datsum <- data %>% group_by(site_no, year(dateTime), month(dateTime), day(dateTime)) %>%
+          summarise(min(X_00060_00000), mean(X_00060_00000), max(X_00060_00000), sd(X_00060_00000), length(X_00060_00000)) %>%
+          rename('year' = 'year(dateTime)', 'month' = 'month(dateTime)', 'day' = 'day(dateTime)',
+                 'minDaily' = 'min(X_00060_00000)','meanDaily' = 'mean(X_00060_00000)',
+                 'maxDaily' = 'max(X_00060_00000)','sdDaily' = 'sd(X_00060_00000)',
+                 'lenDaily' = 'length(X_00060_00000)') %>%
+          mutate(date = mdy(paste(month, day, year))) %>%
+          ungroup() %>%
+          select(site_no, date, minDaily, meanDaily, maxDaily, sdDaily, lenDaily)
+
+write_csv(datsum, "dailystatsALL.csv")
+
+```
+
