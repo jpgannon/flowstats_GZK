@@ -1,0 +1,187 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+```{r}
+library(tidyverse)
+library(lubridate)
+library(patchwork)
+```
+
+```{r}
+toplot <- read_csv("IDs_subset.csv") %>%
+          mutate(site_no = as.character(paste("0", ID, sep = '')))
+
+daily <- read_csv("dailystatsALL.csv")
+
+daily <- left_join(daily, toplot, "site_no") %>%
+        drop_na(description) %>%
+        mutate(maxdiff = ((maxDaily - meanDaily)/meanDaily)*100)
+```
+
+```{r}
+start <- mdy("10-01-2008")
+end <- mdy("9-30-2009")
+
+whichgages <- "bottom rank"
+
+bottom <-  daily %>% filter(date >= start & date <= end) %>%
+    filter(description == whichgages) %>%
+    ggplot(aes(x = date, y = meanDaily, color = "mean Daily"))+
+          geom_line()+
+          geom_line(aes(date, maxDaily, color = "max Daily"))+
+          facet_grid(rows = "site_no", scales = "free")+
+          ggtitle(whichgages)+
+          theme_classic()+
+          theme(legend.position = "none")
+
+bottom
+```
+
+
+```{r}
+whichgages <- "top rank"
+
+top <-  daily %>% filter(date >= start & date <= end) %>%
+    filter(description == whichgages) %>%
+    ggplot(aes(x = date, y = meanDaily, color = "mean Daily"))+
+          geom_line()+
+          geom_line(aes(date, maxDaily, color = "max Daily"))+
+          facet_grid(rows = "site_no", scales = "free")+
+          ggtitle(whichgages)+
+          theme_classic()+
+          theme(legend.position = "none")
+top
+```
+
+```{r}
+whichgages <- "upper middle rank; goes down with max"
+
+upperdown <-  daily %>% filter(date >= start & date <= end) %>%
+    filter(description == whichgages) %>%
+    ggplot(aes(x = date, y = meanDaily, color = "mean Daily"))+
+          geom_line()+
+          geom_line(aes(date, maxDaily, color = "max Daily"))+
+          facet_grid(rows = "site_no", scales = "free")+
+          ggtitle(whichgages)+
+          theme_classic()+
+          theme(legend.position = "none")
+
+upperdown
+```
+
+```{r}
+whichgages <- "upper middle rank; goes up with max"
+
+upperup <-  daily %>% filter(date >= start & date <= end) %>%
+    filter(description == whichgages) %>%
+    ggplot(aes(x = date, y = meanDaily, color = "mean Daily"))+
+          geom_line()+
+          geom_line(aes(date, maxDaily, color = "max Daily"))+
+          facet_grid(rows = "site_no", scales = "free")+
+          ggtitle(whichgages)+
+          theme_classic()+
+          theme(legend.position = "none")
+
+upperup
+```
+
+```{r}
+whichgages <- "lower middle rank; goes down with max"
+
+lowdown <- daily %>% filter(date >= start & date <= end) %>%
+    filter(description == whichgages) %>%
+    ggplot(aes(x = date, y = meanDaily, color = "mean Daily"))+
+          geom_line()+
+          geom_line(aes(date, maxDaily, color = "max Daily"))+
+          facet_grid(rows = "site_no", scales = "free")+
+          ggtitle(whichgages)+
+          theme_classic()+
+          theme(legend.position = "none")
+
+lowdown
+```
+
+```{r}
+whichgages <- "lower middle rank; goes up with max"
+
+lowup <-  daily %>% filter(date >= start & date <= end) %>%
+    filter(description == whichgages) %>%
+    ggplot(aes(x = date, y = meanDaily, color = "mean Daily"))+
+          geom_line()+
+          geom_line(aes(date, maxDaily, color = "max Daily"))+
+          facet_grid(rows = "site_no", scales = "free")+
+          ggtitle(whichgages)+
+          theme_classic()+
+          theme(legend.position = "none")
+
+lowup
+```
+
+```{r}
+(top + bottom) / (upperup + upperdown) / (lowup + lowdown)
+```
+```{r}
+whichgages <- "bottom rank"
+
+botmm <-  daily %>% filter(date >= start & date <= end) %>%
+    filter(description == whichgages) %>%
+    ggplot(aes(x = date, y = maxdiff))+
+          geom_line()+
+          facet_grid(rows = "site_no", scales = "free")+
+          ggtitle(whichgages)+
+          theme_classic()
+
+whichgages <- "top rank"
+
+topmm <-  daily %>% filter(date >= start & date <= end) %>%
+    filter(description == whichgages) %>%
+    ggplot(aes(x = date, y = maxdiff))+
+          geom_line()+
+          facet_grid(rows = "site_no", scales = "free")+
+          ggtitle(whichgages)+
+          theme_classic()
+
+whichgages <- "upper middle rank; goes down with max"
+
+updownmm <-  daily %>% filter(date >= start & date <= end) %>%
+    filter(description == whichgages) %>%
+    ggplot(aes(x = date, y = maxdiff))+
+          geom_line()+
+          facet_grid(rows = "site_no", scales = "free")+
+          ggtitle(whichgages)+
+          theme_classic()
+
+whichgages <- "upper middle rank; goes up with max"
+
+upupmm <-  daily %>% filter(date >= start & date <= end) %>%
+    filter(description == whichgages) %>%
+    ggplot(aes(x = date, y = maxdiff))+
+          geom_line()+
+          facet_grid(rows = "site_no", scales = "free")+
+          ggtitle(whichgages)+
+          theme_classic()
+
+whichgages <- "lower middle rank; goes down with max"
+
+lowdownmm <-  daily %>% filter(date >= start & date <= end) %>%
+    filter(description == whichgages) %>%
+    ggplot(aes(x = date, y = maxdiff))+
+          geom_line()+
+          facet_grid(rows = "site_no", scales = "free")+
+          ggtitle(whichgages)+
+          theme_classic()
+
+whichgages <- "lower middle rank; goes up with max"
+
+lowupmm <-  daily %>% filter(date >= start & date <= end) %>%
+    filter(description == whichgages) %>%
+    ggplot(aes(x = date, y = maxdiff))+
+          geom_line()+
+          facet_grid(rows = "site_no", scales = "free")+
+          ggtitle(whichgages)+
+          theme_classic()
+
+(topmm + botmm) / (updownmm + upupmm) / (lowdownmm + lowupmm)
+```
+

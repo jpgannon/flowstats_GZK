@@ -1,9 +1,9 @@
 ---
 title: "Flashiness plots"
 output:
+  word_document: default
   html_document:
     df_print: paged
-  word_document: default
 ---
 ```{r}
 library(tidyverse)
@@ -33,6 +33,7 @@ SumDQ <- QRBI %>% group_by(site_no, year(date)) %>%
             mutate(RBI = deltaQ / meancfs, RBImax = deltaQmax / meancfs, RBImm = deltaQmm / meancfs) %>%
             ungroup()
 
+write_csv(SumDQ, "YearlyStats.csv")
 ```
 
 ```{r}
@@ -40,6 +41,8 @@ SumDQranks <- SumDQ %>% group_by(site_no) %>% drop_na() %>%
               summarize(mean(RBI), mean(RBImax), mean(RBImm)) %>%
               rename("RBI"= "mean(RBI)", "RBImax" = "mean(RBImax)", "RBImm" = "mean(RBImm)") %>%
               mutate(RBIrank = dense_rank(RBI), RBImaxrank = dense_rank(RBImax), RBImmrank = dense_rank(RBImm))
+
+write_csv(SumDQranks, "RanksAndSummaries.csv") 
 ```
 
 
@@ -79,5 +82,14 @@ SumDQranks %>%
       geom_point()+
       geom_point(aes(RBImaxrank, reorder(site_no, RBIrank), color = "RBI max rank"))
   
+```
+```{r, fig.height=15, fig.width=6}
+QRBI %>%
+  ggplot(aes(y = site_no, x = maxDaily, color = "Max Daily"), alpha = 0.8)+
+    geom_boxplot(outlier.shape = NA)+
+    geom_boxplot(aes(y = site_no, x = meanDaily, color = "Mean Daily"), outlier.shape = NA)+
+    geom_boxplot(aes(y = site_no, x = minDaily, color = "Min Daily"), outlier.shape = NA)+
+    theme_classic()+
+    xlim(c(0,1000))
 ```
 

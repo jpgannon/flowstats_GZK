@@ -1,0 +1,84 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(viridis)
+```
+
+
+```{r}
+library(patchwork)
+library(rgdal)
+info <- read_csv("SE_Ref.csv")
+
+ranks <- read_csv("RanksAndSummaries.csv")
+
+yearlystats <- read_csv("YearlyStats.csv")
+
+allstats <- left_join(yearlystats, info, by = c("site_no" = "STAID"))
+write_csv(allstats, "yearly_stats_w_attributes.csv")
+
+ranks <- left_join(ranks, info, by = c("site_no" = "STAID"))
+write_csv(ranks, "stats_ranks_attributes_per_site.csv")
+
+setwd("/Volumes/GoogleDrive/My Drive/flowstats_GZK/cb_2018_us_state_500k")
+states <- readOGR("cb_2018_us_state_500k.shp")
+```
+
+```{r}
+allstats %>%
+  filter(year == 2007) %>%
+  ggplot(aes(LNG_GAGE, LAT_GAGE, color = log(RBImax)))+
+    geom_point()+
+    scale_color_viridis("RBI max")
+```
+
+```{r}
+RMR <- ranks %>%
+  ggplot(aes(LNG_GAGE, LAT_GAGE, color = RBImaxrank))+
+    geom_point()+
+    scale_color_viridis("RBI max rank")
+```
+
+```{r}
+RR <- ranks %>%
+  ggplot(aes(LNG_GAGE, LAT_GAGE, color = RBIrank))+
+    geom_point()+
+    scale_color_viridis("RBI rank")
+
+RR / RMR
+```
+
+```{r}
+#rank if you use mean - rank using max
+#Negative means max rank is a bigger number, which means you becamse more flashy
+
+ranks %>% #filter(RBI < 1.2) %>%
+  ggplot(aes(LNG_GAGE, LAT_GAGE, size = RBIrank - RBImaxrank, fill = GEOL_HUNT_SITE_CODE))+
+    geom_point(colour = "black", pch = 21)+
+   # scale_fill_gradient2()+
+  #scale_fill_viridis()+
+  #geom_polygon(data = states, aes(x = long, y = lat, group = group), colour = "black", fill = NA)
+  theme_classic()
+```
+```{r}
+ranks %>% 
+  ggplot(aes(DRAIN_SQKM, RBImax))+
+    geom_point()+
+  scale_x_log10()
+    
+```
+```{r}
+#rank if you use mean - rank using max
+#Negative means max rank is a bigger number, which means you becamse more flashy
+
+ranks %>% #filter(RBI < 1.2) %>%
+  ggplot(aes(x =  GEOL_HUNT_DOM_DESC, y = RBIrank - RBImaxrank))+
+    geom_boxplot()
+    scale_fill_gradient2()+
+  #scale_fill_viridis()+
+  #geom_polygon(data = states, aes(x = long, y = lat, group = group), colour = "black", fill = NA)
+  theme_classic()
+```
