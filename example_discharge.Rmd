@@ -1,0 +1,49 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+## example plots
+
+flashy, non flashy
+
+```{r}
+
+alldat <- read_csv("daily_data_CONUS_1999-2010.csv") %>% 
+  rename(Discharge = X_00060_00003)
+```
+
++----------+------------+-------+--------------------------------+---------+
+| 06408700 | 0.01080776 | 1     | RHOADS FORK NEAR ROCHFORD SD   | 20.8    |
++==========+============+=======+================================+=========+
++----------+------------+-------+--------------------------------+---------+
+
++----------+-----------+------+-----------------------------------------------+-------+
+| 09486350 | 1.7576353 | 1144 | CANADA DEL ORO BLW INA ROAD, NEAR TUCSON, AZ. | 675.3 |
++==========+===========+======+===============================================+=======+
++----------+-----------+------+-----------------------------------------------+-------+
+
+```{r}
+
+gagestoplot <- c("06408700","09486350")
+
+
+alldat %>% filter(site_no %in% gagestoplot) %>%
+  filter(Date > mdy("10-01-2005") & Date < mdy("10-01-2007")) %>%
+  left_join(ranks, by = "site_no") %>%
+  mutate(label = paste("Size (sqkm): ", DRAIN_SQKM, " RBI: ", round(RBI,2))) -> toplot
+  
+EX_ts_flashy <- toplot %>% ggplot(aes(x = Date, y = (Discharge * 0.0283)))+
+    ylab("Discharge (cumecs)")+
+    geom_line()+
+    facet_wrap(vars(STANAME), ncol = 1, scales = "free")+
+    theme_classic()+
+    geom_text(aes(x = mdy("10-01-2005"), y = Inf, label = label, group = label),
+       size = 4,
+        hjust = 0,
+        vjust = 1.4,
+        inherit.aes = FALSE)
+
+
+
+```

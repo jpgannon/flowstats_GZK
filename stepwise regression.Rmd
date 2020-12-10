@@ -1,0 +1,66 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+```{r}
+
+library(caret)
+library(leaps)
+library(MASS)
+library(tidyverse)
+```
+
+```{r}
+#load data
+stats_attr <- read_csv("stats_ranks_attributes_per_site_all.csv")
+```
+[1] "site_no"               "RBI"                   "RBIrank"               "STANAME"               "DRAIN_SQKM"           
+ [6] "HUC02"                 "LAT_GAGE"              "LNG_GAGE"              "STATE"                 "CLASS"                
+[11] "AGGECOREGION"          "PPTAVG_BASIN"          "PPTAVG_SITE"           "T_AVG_BASIN"           "T_AVG_SITE"           
+[16] "T_MAX_BASIN"           "T_MAXSTD_BASIN"        "T_MAX_SITE"            "T_MIN_BASIN"           "T_MINSTD_BASIN"       
+[21] "T_MIN_SITE"            "PET"                   "SNOW_PCT_PRECIP"       "PRECIP_SEAS_IND"       "FLOWYRS_1990_2009"    
+[26] "wy00_09"               "wy2000"                "wy2001"                "wy2002"                "wy2003"               
+[31] "wy2004"                "wy2005"                "wy2006"                "wy2007"                "wy2008"               
+[36] "wy2009"                "GEOL_REEDBUSH_DOM"     "GEOL_REEDBUSH_DOM_PCT" "STRAHLER_MAX"          "STREAMS_KM_SQ_KM"     
+[41] "NDAMS_2009"            "STOR_NID_2009"         "STOR_NOR_2009"         "MAJ_NDAMS_2009"        "DEVNLCD06"            
+[46] "FORESTNLCD06"          "PLANTNLCD06"           "WATERNLCD06"           "SNOWICENLCD06"         "DEVOPENNLCD06"        
+[51] "DEVLOWNLCD06"          "DEVMEDNLCD06"          "DEVHINLCD06"           "BARRENNLCD06"          "DECIDNLCD06"          
+[56] "EVERGRNLCD06"          "MIXEDFORNLCD06"        "SHRUBNLCD06"           "GRASSNLCD06"           "PASTURENLCD06"        
+[61] "CROPSNLCD06"           "WOODYWETNLCD06"        "EMERGWETNLCD06"        "ECO3_SITE"             "ROCKDEPAVE"           
+[66] "ELEV_MEAN_M_BASIN"     "SLOPE_PCT"             "ASPECT_DEGREES"        "WR_REPORT_REMARKS"     "ADR_CITATION"         
+[71] "SCREENING_COMMENTS"    "Type"                  "RBpaperSize"           "newSize"  
+```{r}
+#set up data for regression
+forreg <- stats_attr %>% 
+  #filter(RBpaperSize == 'a') %>%
+  dplyr::select(-site_no, -RBIrank, -STANAME, -HUC02, -STATE, -CLASS, -AGGECOREGION, -wy2000, -wy2001, -wy2002,
+               -wy2003, -wy2004, -wy2005,-wy2006, -wy2007, -wy2008, -wy2009, -GEOL_REEDBUSH_DOM, 
+               -ADR_CITATION, -SCREENING_COMMENTS, -Type, -RBpaperSize, -newSize, -LAT_GAGE, -LNG_GAGE, -WR_REPORT_REMARKS,
+               -FLOWYRS_1990_2009)
+                           #     STREAMS_KM_SQ_KM, NDAMS_2009, DEVNLCD06, FORESTNLCD06, ELEV_MEAN_M_BASIN, SLOPE_PCT,
+                           #     ASPECT_DEGREES, STRAHLER_MAX)
+                           #dplyr::select(RBI, DRAIN_SQKM, PPTAVG_BASIN, T_AVG_BASIN, PET, SNOW_PCT_PRECIP, PRECIP_SEAS_IND,
+                           #     STREAMS_KM_SQ_KM, NDAMS_2009, DEVNLCD06, FORESTNLCD06, ELEV_MEAN_M_BASIN, SLOPE_PCT,
+                           #     ASPECT_DEGREES, STRAHLER_MAX)
+#forregsizeA <- forreg %>% filter(RBpaperSize == 'a')
+```
+FROM: http://www.sthda.com/english/articles/37-model-selection-essentials-in-r/154-stepwise-regression-essentials-in-r/
+```{r}
+# Set seed for reproducibility
+set.seed(123)
+# Set up repeated k-fold cross-validation
+train.control <- trainControl(method = "cv", number = 10)
+# Train the model
+step.model <- train(RBI ~., data = forreg,
+                    method = "leapSeq", 
+                    tuneGrid = data.frame(nvmax = 1:7),
+                    trControl = train.control
+                    )
+step.model$results
+results <- step.model$results
+
+
+sumreg <- summary(step.model$finalModel)
+write.csv(sumreg$outmat, "multipleregression_output_6NOV2020_allsites.csv")
+```
+

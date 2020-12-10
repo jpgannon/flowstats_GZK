@@ -1,0 +1,289 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(viridis)
+library(tidyverse)
+library(lubridate)
+library(patchwork)
+library(gridExtra)
+library(rgdal)
+library(raster)
+library(RColorBrewer)
+
+info <- read_csv("Sites_May2020_CONUS.csv")
+
+ranks <- read_csv("RanksAndSummaries_all_sites_CONUS.csv")
+
+yearlystats <- read_csv("YearlyStats_all_CONUS.csv")
+
+allstats <- left_join(yearlystats, info, by = c("site_no" = "STAID"))
+#add size classes
+RBIbreaks <- c(0,78,260,780,2600,7800,30000)
+RBInames <- c("a","b","c","d","e","f")
+#Breaks <- c(0,39,78,260,780,2600,7800,30000)
+#Breaksnames <- c("aa","a","b","c","d","e","f")
+Breaks <- c(0,39,30000)
+Breaksnames <- c("headwater","other")
+
+#df1 <- df %>% mutate(category=cut(a, breaks=xs, labels=c("low","middle","high")))
+allstats <- allstats %>% 
+  mutate(RBpaperSize = cut(DRAIN_SQKM, breaks = RBIbreaks, labels = RBInames)) %>%
+  mutate(Size = cut(DRAIN_SQKM, breaks = Breaks, labels = Breaksnames))
+
+write_csv(allstats, "yearly_stats_w_attributes_all.csv")
+
+ranks <- left_join(ranks, info, by = c("site_no" = "STAID"))
+
+ranks <- ranks %>% 
+  mutate(RBpaperSize = cut(DRAIN_SQKM, breaks = RBIbreaks, labels = RBInames)) %>%
+  mutate(newSize = cut(DRAIN_SQKM, breaks = Breaks, labels = Breaksnames))
+
+write_csv(ranks, "stats_ranks_attributes_per_site_all.csv")
+
+
+```
+
+```{r}
+ranks <- read_csv("stats_ranks_attributes_per_site_kgc.csv")
+KGClu <- read_csv("KGC_LU_table.csv")
+
+# function for number of observations 
+give.n <- function(x){
+  #return(c(y = median(x)*1.05, label = length(x))) 
+  return(c(y = 2, label = length(x))) 
+  # experiment with the multiplier to find the perfect position
+}
+ranks %>% 
+  ggplot(aes(RBI, color = KGC))+
+    stat_ecdf(geom = "point")
+
+ranks %>% 
+  ggplot(aes(RBI, color = KGC))+
+    stat_density(position = "identity", fill = NA)
+
+ranks %>% 
+  ggplot(aes(y=RBI,x=newSize))+
+    stat_boxplot()
+
+rbviolins <- ranks %>% # filter(CLASS == "Ref") %>%
+  ggplot(aes(y=RBI,x=RBpaperSize, fill = RBpaperSize))+
+    geom_violin(trim = FALSE)+
+    geom_boxplot(width = 0.1, fill = "white")+
+    theme_classic()+
+    xlab("Size Bins from R-B Study")+
+    stat_summary(fun.data = give.n, 
+                 geom = "text", fun = median, 
+                 hjust = 0.5, position = position_dodge(1))+
+  scale_fill_discrete(name = "Size (sqkm)", labels = c("a 0-78", 
+                                                       "b 78-260",
+                                                       "c 260-780",
+                                                       "d 780-2600",
+                                                       "e 2600-7800",
+                                                       "f 7800-30000"))
+
+ranks %>% # filter(CLASS == "Ref") %>%
+  ggplot(aes(y=RBI,x=DRAIN_SQKM, color = KGC))+
+    geom_point()+
+    scale_x_log10()+
+    theme_classic() 
+
+ranks %>% #filter(CLASS == "Ref") %>% reorder(Species, Sepal.Width, FUN = median)
+  ggplot(aes(y=RBI,x=reorder(KGC, RBI, FUN = median)))+
+    geom_violin(trim = FALSE)+
+    geom_boxplot(width = 0.1, fill = "white")+
+    theme_classic()+
+    facet_grid(rows = "RBpaperSize")
+
+ranks %>%
+  ggplot(aes(x = log(DRAIN_SQKM), y = RBI, color = KGC))+
+  geom_point()+
+  theme_classic()
+```
+
+```{r}
+trimrank <- ranks %>% dplyr::select(site_no, RBI, RBpaperSize, KGC)
+
+sizeKGCsum <- ranks %>% 
+  group_by(RBpaperSize, KGC) %>%
+  dplyr::summarise(count = length(site_no), meanrbi = mean(RBI))
+
+PerKGC <- ranks %>%
+  group_by(KGC) %>%
+  dplyr::summarise(count = length(site_no), meanrbi = mean(RBI))
+
+ggplot(sizeKGCsum, aes(fill=KGC, y=count, x=RBpaperSize)) + 
+    geom_bar(position="stack", stat="identity")
+```
+
+## Plot only KGC's with over 20 watersheds
+
+```{r}
+
+KGCsOver10 <- PerKGC$KGC[PerKGC$count >= 10]
+KGCsOver20 <- PerKGC$KGC[PerKGC$count >= 20] 
+
+PerKGC %>% filter(count >= 10)
+
+kgcplotviolin <- ranks %>%  filter(KGC %in% KGCsOver10) %>%
+  ggplot(aes(y=RBI,x=reorder(KGC, RBI, FUN = median), fill = KGC))+
+    geom_violin(trim = FALSE)+
+    geom_boxplot(width = 0.05, fill = "white")+
+    theme_classic()
+
+kgcplot <- ranks %>%  filter(KGC %in% KGCsOver10) %>%
+  ggplot(aes(y=RBI,x=reorder(KGC, RBI, FUN = median), fill = KGC))+
+    geom_boxplot()+
+    theme_classic()
+
+table <- KGClu %>% filter(Code %in% KGCsOver10) %>%
+  tableGrob()
+
+kgcplot / table
+
+lineskgc <- ranks %>%filter(KGC %in% KGCsOver10) %>%
+  ggplot(aes(x = log(DRAIN_SQKM), y = RBI, color = KGC))+
+  stat_smooth()+
+  theme_classic()
+
+lineskgc / table
+
+bpkgc <- ranks %>% filter(KGC %in% KGCsOver10) %>%
+  ggplot(aes(x = RBpaperSize, y = RBI, fill = KGC))+
+  geom_boxplot()+
+  #geom_point()+
+  theme_classic()+
+  xlab("Size Bins from R-B study")+
+  facet_wrap(vars(KGC))+
+  theme(legend.position = "none")+
+  scale_fill_brewer(palette="Paired")
+  
+PTSkgc <- ranks %>% filter(KGC %in% KGCsOver10) %>%
+  ggplot(aes(x = DRAIN_SQKM, y = RBI, color = KGC))+ #, shape = Type))+
+  geom_point()+
+  stat_smooth(method = 'lm', color = "black")+
+  scale_shape_manual(values=c(3, 16))+
+  theme_classic()+
+  xlab(expression("Drainage Area ("~km^2~")"))+
+  facet_wrap(vars(KGC))+
+  theme(legend.position = "none")+
+  scale_x_log10()+
+  scale_color_brewer(palette="Paired")
+
+SLOPEkgc <- ranks %>% filter(KGC %in% KGCsOver10) %>%
+  ggplot(aes(x = SLOPE_PCT, y = RBI, color = KGC))+
+  geom_point()+
+  theme_classic()+
+  xlab("Average Slope (%)")+
+  facet_wrap(vars(KGC))+
+  theme(legend.position = "none")+
+  scale_color_brewer(palette="Paired")
+  
+SLOPEkgc
+
+devlandRBI <- ranks %>% filter(KGC %in% KGCsOver10) %>%
+  ggplot(aes(x = DEVNLCD06, y = RBI, color = KGC))+
+  geom_point()+
+  theme_classic()+
+  xlab("Developed Land (%)")+
+  facet_wrap(vars(KGC))+
+  theme(legend.position = "none")+
+  scale_color_brewer(palette="Paired")
+
+
+
+
+
+PTSkgc
+bpkgc
+```
+
+## Just small sites
+
+```{r}
+rbAviolins <- ranks %>% 
+  filter(KGC %in% KGCsOver10 & RBpaperSize == "a") %>%
+  ggplot(aes(y=RBI,x=reorder(KGC, RBI, FUN = median), fill = KGC))+
+    geom_boxplot()+
+    theme_classic()+
+    xlab("KG Climate (KGC) Zones")+
+    stat_summary(fun.data = give.n, 
+                 geom = "text", fun = median, 
+                 hjust = 0.5, position = position_dodge(1))+
+    scale_fill_brewer(palette="Paired")
+
+rbAviolins
+```
+
+## Which sites are flashy!?
+
+```{r}
+ranks %>% filter(KGC == "BSk", RBpaperSize == "e")
+```
+
+## Map of KG regions (combined in chunk below with RBI dat)
+
+```{r}
+#read world KG raster and key file
+KGdat <- raster("Map_KG-Global/KG_1986-2010.grd")
+key <- read_csv("Map_KG-Global/climatecodes.csv")
+
+#read us states vector file and trim to just CONUS
+states <- readOGR("cb_2018_us_state_500k/cb_2018_us_state_500k.shp")
+cstates <- states[!states$STUSPS %in% c("HI","AK","PR","VI","GU","MP","AS"),] 
+
+#crop world KG, convert to dataframe, join Key data
+KGusa <- crop(KGdat, cstates)
+KGusaDF <- as.data.frame(KGusa, xy = TRUE)
+KGusaDF <- KGusaDF %>% left_join(key, by = c("layer" = "ID"))
+
+#remove KGCs that aren't represented in our data
+KGusaGZK <- KGusaDF %>% filter(climate %in% KGCsOver10)
+
+KGmap <- ggplot()+
+  geom_raster(data = KGusaGZK, aes(x = x, y = y, fill = climate))+
+  geom_polygon(data = cstates, aes(x = long, y = lat, group = group), 
+               colour = "black", fill = NA)+
+  scale_fill_brewer(palette="Paired")+
+  theme_classic()+
+  ylab("Latitude (deg)")+
+  xlab("Longitude (deg)")
+
+KGmapPTScolor <- ggplot()+
+  geom_polygon(data = cstates, aes(x = long, y = lat, group = group), 
+               colour = "black", fill = NA)+
+  theme_classic()+
+  ylab("Latitude (deg)")+
+  xlab("Longitude (deg)")
+ 
+```
+
+## Map AND RBI plots
+
+```{r}
+KGmap_RBboxplots <- KGmap / bpkgc
+
+```
+
+```{r}
+
+KGmap_points <- KGmap / PTSkgc
+```
+
+## map with sites
+
+```{r}
+
+sitesmap <- KGmapPTScolor +
+  geom_point(data = filter(ranks, KGC %in% KGCsOver10), 
+             aes(y = LAT_GAGE, x = LNG_GAGE, fill = KGC),
+             size = 2, shape = 21)+
+      scale_fill_brewer(palette = "Paired")
+
+sitesmap
+site_table <- sitesmap/table + plot_layout(heights = c(4,2))
+  
+site_table
+```

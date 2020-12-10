@@ -13,11 +13,11 @@ library(lubridate)
 ```{r}
 library(patchwork)
 library(rgdal)
-info <- read_csv("all_ref_urban.csv")
+info <- read_csv("Sites_May2020_CONUS.csv")
 
-ranks <- read_csv("RanksAndSummaries_all_sites.csv")
+ranks <- read_csv("RanksAndSummaries_all_sites_CONUS.csv")
 
-yearlystats <- read_csv("YearlyStats_all_sites.csv")
+yearlystats <- read_csv("YearlyStats_all_CONUS.csv")
 
 allstats <- left_join(yearlystats, info, by = c("site_no" = "STAID"))
 #add size classes
@@ -48,26 +48,18 @@ states <- readOGR("cb_2018_us_state_500k.shp")
 ```{r}
 allstats %>%
   filter(year == 2007) %>%
-  ggplot(aes(LNG_GAGE, LAT_GAGE, color = log(RBImax)))+
+  ggplot(aes(LNG_GAGE, LAT_GAGE, color = log(RBI)))+
     geom_point()+
-    scale_color_viridis("RBI max")
+    scale_color_viridis("RBI")
 ```
 
 ```{r}
-RMR <- ranks %>%
-  ggplot(aes(LNG_GAGE, LAT_GAGE, color = RBImaxrank))+
+ranks %>% filter(STRAHLER_MAX == 1) %>%
+  ggplot(aes(LNG_GAGE, LAT_GAGE, color = RBI))+
     geom_point()+
-    scale_color_viridis("RBI max rank")
+    scale_color_viridis("RBIrank")
 ```
 
-```{r}
-RR <- ranks %>%
-  ggplot(aes(LNG_GAGE, LAT_GAGE, color = RBIrank))+
-    geom_point()+
-    scale_color_viridis("RBI rank")
-
-RR / RMR
-```
 
 ```{r}
 #rank if you use mean - rank using max
@@ -77,7 +69,7 @@ RR / RMR
 #world.map <- world.map[world.map$AREA > 30000,]
 cstates <- states[!states$STUSPS %in% c("HI","AK","PR","VI","GU","MP","AS"),] 
 
-ranks %>% filter(RBImax < .05) %>%
+ranks %>% filter(newSize == "aa") %>%
   ggplot(aes(LNG_GAGE, LAT_GAGE, fill = RBI))+
   geom_polygon(data = cstates, aes(x = long, y = lat, group = group), colour = "black", fill = NA)+
     geom_point(colour = "black", pch = 21)+
@@ -100,7 +92,7 @@ ranks %>% filter(DEVNLCD06 > 20) %>%
 #Negative means max rank is a bigger number, which means you becamse more flashy
 
 ranks %>% #filter(RBI < 1.2) %>%
-  ggplot(aes(x =  GEOL_HUNT_DOM_DESC, y = RBIrank - RBImaxrank))+
+  ggplot(aes(x =  GEOL_HUNT_DOM_DESC, y = RBI))+
     geom_boxplot()
     scale_fill_gradient2()+
   #scale_fill_viridis()+
@@ -121,26 +113,15 @@ allstats %>%
     facet_grid(rows = "Type")
     
 ```
-```{r}
-rmax <- allstats %>%
-    ggplot(aes(x = Type, y = RBImax))+
-    geom_boxplot()+
-    theme_classic()+
-    ylim(c(0,20))
 
-rreg <- allstats %>%
+```{r}
+
+ranks %>%
     ggplot(aes(x = Type, y = RBI))+
     geom_boxplot()+
-    theme_classic()+
-    ylim(c(0,20))
+    theme_classic()
 
-rmm <- allstats %>%
-    ggplot(aes(x = Type, y = RBImm))+
-    geom_boxplot()+
-    theme_classic()+
-    ylim(c(0,20))
 
-rreg + rmax + rmm
 ```
 
 ```{r}
@@ -148,23 +129,12 @@ darbi <- allstats %>%
   ggplot(aes(y = RBI, x = DRAIN_SQKM, color = Type))+
   geom_point()+
   theme_classic()+
-  theme(legend.position = 'none')
+  theme(legend.position = 'none')+
+  scale_x_log10()
 
-darbimax <- allstats %>%
-  ggplot(aes(y = RBImax, x = DRAIN_SQKM, color = Type))+
-  geom_point()+
-  theme_classic()+
-  theme(legend.position = 'none')
-
-darbimm <- allstats %>%
-  ggplot(aes(y = RBImm, x = DRAIN_SQKM, color = Type))+
-  geom_point()+
-  theme_classic()+
-  theme(legend.position = 'none')
-
-darbi + darbimax + darbimm
+darbi
 ```
-```{r, fig.height=4, fig.width=4}
+```{r}
 # function for number of observations 
 give.n <- function(x){
   #return(c(y = median(x)*1.05, label = length(x))) 
@@ -187,25 +157,12 @@ newsizeplot <- ranks %>%
   stat_summary(fun.data = give.n, geom = "text", fun = median, hjust = 0.5, position = position_dodge(1))
 
 
-rbpaperplotMAX <- ranks %>%
-  ggplot(aes(x = RBpaperSize, y = RBImax, fill = Type)) +
-  geom_boxplot() +
-  ylim(c(0,1.5)) +
-  theme_classic()+
-  stat_summary(fun.data = give.n, geom = "text", fun = median, hjust = 0.5, position = position_dodge(1))
 
-
-newsizeplotMAX <- ranks %>%
-  ggplot(aes(x = newSize, y = RBImax, fill = Type)) +
-  geom_boxplot() +
-  ylim(c(0,1.5)) +
-  theme_classic()+
-  stat_summary(fun.data = give.n, geom = "text", fun = median, hjust = 0.5, position = position_dodge(1))
-
-
-combined <- (rbpaperplot + newsizeplot) / (rbpaperplotMAX + newsizeplotMAX) & theme(legend.position = "bottom")
+combined <- (rbpaperplot + newsizeplot) & theme(legend.position = "bottom")
 combined + plot_layout(guides = "collect")
 ```
+
+
 ```{r}
 sizeRBI <- ranks %>% 
   ggplot(aes(x = DRAIN_SQKM, y = RBI, color = Type)) +
@@ -215,15 +172,28 @@ sizeRBI <- ranks %>%
   theme_classic()
 
 
-sizeRBImax <- ranks %>%
-  ggplot(aes(x = DRAIN_SQKM, y = RBImax, color = Type)) +
+
+sizeRBI
+```
+```{r}
+ranks %>% filter(Type != "CONUS-Urb" & FORESTNLCD06 > 70) %>% 
+  ggplot(aes(x = SLOPE_PCT, y = RBI, color = SNOW_PCT_PRECIP)) +
   geom_point() +
-  ylim(c(0,1.5)) +
+  #scale_x_log10()+
+  theme_classic()
+
+ranks_ref <- ranks %>% filter(Type != "CONUS-Urb" & FORESTNLCD06 > 70)
+mdl <-lm(RBI ~ SLOPE_PCT + SNOW_PCT_PRECIP + PPTAVG_BASIN, data = ranks_ref)
+summary(mdl)
+```
+
+```{r}
+ranks %>% filter(Type == "CONUS-Urb") %>% 
+  ggplot(aes(x = DRAIN_SQKM, y = RBI, color = SNOW_PCT_PRECIP)) +
+  geom_point() +
   scale_x_log10()+
   theme_classic()
 
 
 
-combined <- (sizeRBI + sizeRBImax) & theme(legend.position = "bottom")
-combined + plot_layout(guides = "collect")
 ```

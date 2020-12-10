@@ -1,0 +1,100 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+```{r}
+ptype <- "png"
+```
+
+Save figures
+
+Figure 1. Map of sites colored by KGC map with table
+From RMD: cfs general stats
+```{r}
+ggsave("Figure1_pts_map.png", site_table, 
+       device = ptype, path = "OutputPlots/",
+       width = 10,
+       height = 10,
+       units = "in")
+```
+
+Figure 2. Example Timeseries
+From RMD: example_discharge
+```{r}
+ggsave("Figure2_ex_ts.png", EX_ts_flashy, 
+       device = ptype, path = "OutputPlots/",
+       width = 6,
+       height = 4,
+       units = "in")
+```
+
+Figure 3. Violin plots of RB paper sizes
+From RMD: cdfs general stats
+```{r}
+ggsave("Figure3_rb_violins.png", rbviolins, 
+       device = ptype, path = "OutputPlots/",
+       width = 6,
+       height = 4,
+       units = "in")
+```
+
+Figure 4. RB paper size boxplots with KGC map
+From RMD: cdfs general stats
+```{r}
+ggsave("Figure4_map_rbboxplots.png", KGmap_RBboxplots, 
+       device = ptype, path = "OutputPlots/",
+       width = 7,
+       height = 8,
+       units = "in")
+```
+
+Figure 5. Size v RBI point clouds with linear fits and map
+From RMD: cdfs general stats
+```{r}
+ggsave("Figure5_map_points.png", KGmap_points, 
+       device = ptype, path = "OutputPlots/",
+       width = 7,
+       height = 8,
+       units = "in")
+```
+
+Figure 6. Slope v. RBI
+from RMD: cdfs general stats
+```{r}
+ggsave("Figure6_slope_rbi.png", SLOPEkgc, 
+       device = ptype, path = "OutputPlots/",
+       width = 6,
+       height = 4,
+       units = "in")
+```
+
+Figure 7. Developed land v. RBI
+from RMD: cdfs general stats
+```{r}
+ggsave("Figure7_devland_rbi.png", devlandRBI, 
+       device = ptype, path = "OutputPlots/",
+       width = 6,
+       height = 4,
+       units = "in")
+```
+
+Figure 8. RF predictors v importance for all sites colored by "Type"
+in: random forest
+```{r}
+#some variables are the same in this and the per KGC RF, so be sure to re-run
+ggsave("Figure8_RF_import_CONUS.png", RF_import_ALL, 
+       device = ptype, path = "OutputPlots/",
+       width = 7,
+       height = 8,
+       units = "in")
+```
+
+Figure 9. RF predictor categories for KGCs, include map as top panel
+in: random forest PER KGC
+```{r}
+ggsave("Figure9_RFsums_perKGC.png", RFsummary_KGCs, 
+       device = ptype, path = "OutputPlots/",
+       width = 6,
+       height = 4,
+       units = "in")
+```

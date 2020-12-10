@@ -1,0 +1,183 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(rsample)      # data splitting 
+library(randomForest) # basic implementation
+library(ranger)       # a faster implementation of randomForest
+library(caret)        # an aggregator package for performing many machine learning models
+library(h2o)          # an extremely fast java-based platform
+library(RColorBrewer)
+library(patchwork)
+
+```
+
+## Prep data
+
+```{r}
+#load data
+#stats_attr <- read_csv("stats_ranks_attributes_per_site_all.csv")
+stats_attr <- read_csv("stats_ranks_attributes_per_site_kgc.csv")
+paramTypes <- read_csv("paramsForRF.csv")
+#set up data for regression
+forRF <- stats_attr %>% 
+  #filter(RBpaperSize == 'a') %>%
+  dplyr::select(-site_no, -RBIrank, -STANAME, -HUC02, -STATE, -CLASS, -AGGECOREGION,
+                -wy2000, -wy2001, -wy2002,-wy2003, -wy2004, -wy2005,-wy2006, -wy2007,
+                -wy2008,-wy2009, -GEOL_REEDBUSH_DOM, -ADR_CITATION, -SCREENING_COMMENTS, 
+                -Type, -RBpaperSize, -newSize, -LAT_GAGE, -LNG_GAGE, -WR_REPORT_REMARKS,
+               -FLOWYRS_1990_2009, -wy00_09) %>%
+  filter(KGC == "Cfb")
+```
+
+<https://uc-r.github.io/random_forests>
+
+Figure out how many tries, node size, sample fraction
+
+```{r}
+
+# hyperparameter grid search
+hyper_grid <- expand.grid(
+  mtry       = seq(20, 30, by = 2),
+  node_size  = seq(3, 9, by = 2),
+  sampe_size = c(.55, .632, .70, .80),
+  OOB_RMSE   = 0
+)
+
+# total number of combinations
+nrow(hyper_grid)
+## [1] 96
+
+for(i in 1:nrow(hyper_grid)) {
+  
+  # train model
+  model <- ranger(
+    formula         = RBI ~ ., 
+    data            = forRF, 
+    num.trees       = 500,
+    mtry            = hyper_grid$mtry[i],
+    min.node.size   = hyper_grid$node_size[i],
+    sample.fraction = hyper_grid$sampe_size[i],
+    seed            = 123
+  )
+  
+  # add OOB error to grid
+  hyper_grid$OOB_RMSE[i] <- sqrt(model$prediction.error)
+}
+```
+
+```{r}
+
+for(f in 1:9){
+  
+  KGCs <- c("BSk","Cfa","Cfb","Csa","Csb","Dfa",
+            "Dfb","Dfc","Dsb")
+  
+  forRF <- stats_attr %>% 
+  #filter(RBpaperSize == 'a') %>%
+  dplyr::select(-site_no, -RBIrank, -STANAME, -HUC02, -STATE, -CLASS, -AGGECOREGION,
+                -wy2000, -wy2001, -wy2002,-wy2003, -wy2004, -wy2005,-wy2006, -wy2007,
+                -wy2008,-wy2009, -GEOL_REEDBUSH_DOM, -ADR_CITATION, -SCREENING_COMMENTS, 
+                -Type, -RBpaperSize, -newSize, -LAT_GAGE, -LNG_GAGE, -WR_REPORT_REMARKS,
+               -FLOWYRS_1990_2009, -wy00_09) %>%
+  filter(KGC == KGCs[f])
+  
+    hyper_grid %>% 
+      dplyr::arrange(OOB_RMSE) %>%
+      head(10)
+    
+    
+    OOB_RMSE <- vector(mode = "numeric", length = 100)
+    
+    for(i in seq_along(OOB_RMSE)) {
+    
+      optimal_ranger <- ranger(
+        formula         = RBI ~ ., 
+        data            = forRF, 
+        num.trees       = 500,
+        mtry            = 28,
+        min.node.size   = 3,
+        sample.fraction = .8,
+        importance      = 'impurity'
+      )
+      
+      OOB_RMSE[i] <- sqrt(optimal_ranger$prediction.error)
+    }
+    
+    hist(OOB_RMSE, breaks = 20)
+    
+    optimal_ranger$variable.importance %>% 
+      tidy() %>%
+      left_join(paramTypes, by = c("names" = "Params")) %>%
+      dplyr::arrange(desc(x)) %>%
+     # dplyr::top_n(25) %>%
+      ggplot(aes(reorder(names, x), x, fill = Type)) +
+      geom_col() +
+      coord_flip()+
+      scale_fill_brewer(palette="Accent")+
+      theme_minimal()+
+      xlab("Predictors")+
+      ylab("Importance")+
+      ggtitle("Just Cfb")
+  
+    importances <- optimal_ranger$variable.importance %>% 
+      as_tibble() %>% 
+      bind_cols(names(optimal_ranger$variable.importance)) %>%
+      rename(importance = value, param = '...2') %>%
+      mutate(KGC = KGCs[f])
+
+    if(f == 1) AllImportances <- importances
+    if(f != 1) AllImportances <- bind_rows(AllImportances, importances)
+}
+
+AllImportances <- AllImportances %>% left_join(paramTypes, by = c("param"="Params"))
+```
+
+
+```{r}
+top10pred <- AllImportances %>%
+  group_by(KGC) %>%
+  dplyr::slice_max(importance, n = 10)
+
+
+top10pred %>% 
+    ggplot(aes(param,importance, fill =  Type))+
+      geom_col()+
+      coord_flip()+
+      scale_fill_brewer(palette="Accent")+
+      theme_minimal()+
+      xlab("KGC")+
+      ylab("Importance")+
+      facet_wrap(vars(KGC), scales = "free")
+
+KGCkey <- top10pred %>%
+  ggplot(aes(KGC,1, fill = KGC))+
+  geom_tile()+
+  scale_fill_brewer(palette = "Paired")+
+  coord_flip()+
+  theme_void()+
+  theme(legend.position = "None",
+        axis.title = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank())
+
+  
+
+KGCbarstack <- top10pred %>%
+    ggplot(aes(KGC,importance, fill =  Type))+
+      geom_bar(position = "fill", stat = "identity")+
+      coord_flip()+
+      scale_fill_brewer(palette="Set1")+
+      theme_minimal()+
+      xlab("KGC")+
+      ylab("Proportion of importance in top 10 parameters")#+
+      #theme(axis.title.y = element_blank(),
+        #    axis.text.y = element_blank())
+
+RFsummary_KGCs <- KGCkey + KGCbarstack + plot_layout(widths = c(.2,4))
+
+```
+

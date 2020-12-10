@@ -10,7 +10,8 @@ library(tidyverse)
 library(dataRetrieval)
 library(lubridate)
 
-datsum <- read_csv("dailystatsALL.csv")
+#datsum <- read_csv("dailystatsALL_smallsites.csv")
+datsum <- read_csv("all_ref_sites_daily_stats.csv")
 ```
 
 ```{r}
@@ -33,7 +34,9 @@ SumDQ <- QRBI %>% group_by(site_no, year(date)) %>%
             mutate(RBI = deltaQ / meancfs, RBImax = deltaQmax / meancfs, RBImm = deltaQmm / meancfs) %>%
             ungroup()
 
-write_csv(SumDQ, "YearlyStats.csv")
+
+
+write_csv(SumDQ, "YearlyStats_all_sites.csv")
 ```
 
 ```{r}
@@ -42,7 +45,7 @@ SumDQranks <- SumDQ %>% group_by(site_no) %>% drop_na() %>%
               rename("RBI"= "mean(RBI)", "RBImax" = "mean(RBImax)", "RBImm" = "mean(RBImm)") %>%
               mutate(RBIrank = dense_rank(RBI), RBImaxrank = dense_rank(RBImax), RBImmrank = dense_rank(RBImm))
 
-write_csv(SumDQranks, "RanksAndSummaries.csv") 
+write_csv(SumDQranks, "RanksAndSummaries_all_sites.csv") 
 ```
 
 

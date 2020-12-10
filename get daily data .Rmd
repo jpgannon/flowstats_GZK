@@ -12,38 +12,38 @@ Create table with available parameters and periods for each gage in NC lowdev da
 ```{r}
 #sites <- read_csv("serefsites.csv")$sites
 #sites <- paste("0",as.character(sites), sep = '')
-sites <- read_csv("all_ref_urban.csv")$STAID 
+sites <- read_csv("Sites_May2020_CONUS.csv")$STAID 
 
 #sites <- sites[1:282]
 
 #pull available daily data and match with parameter names from parameterCdFile , service="dv", statCd = "00003"
-available <- whatNWISdata(siteNumber = sites, service = c("dv","qw")) %>%
-  select(c("site_no","station_nm","dec_lat_va", "dec_long_va","parm_cd","stat_cd","begin_date","end_date")) %>%
-  left_join(parameterCdFile, by = c("parm_cd" = "parameter_cd"))
-
-bystation <- pivot_wider(available, id_cols = c("site_no","station_nm"), names_from = "parameter_nm", 
-                         values_from = "parameter_nm",
-                         values_fn = list(parameter_nm = length))
-
-#pull out sites that have instantaneous data available
-sites_inst <- bystation %>% select(site_no, 'Discharge, instantaneous, cubic feet per second') %>%
-  drop_na() %>% select(site_no)
-
-write_csv(sites_inst, "sites_inst_ref_urban.csv")
+# available <- whatNWISdata(siteNumber = sites, service = c("dv","qw")) %>%
+#   select(c("site_no","station_nm","dec_lat_va", "dec_long_va","parm_cd","stat_cd","begin_date","end_date")) %>%
+#   left_join(parameterCdFile, by = c("parm_cd" = "parameter_cd"))
+# 
+# bystation <- pivot_wider(available, id_cols = c("site_no","station_nm"), names_from = "parameter_nm", 
+#                          values_from = "parameter_nm",
+#                          values_fn = list(parameter_nm = length))
+# 
+# #pull out sites that have instantaneous data available
+# sites_inst <- bystation %>% select(site_no, 'Discharge, instantaneous, cubic feet per second') %>%
+#   drop_na() %>% select(site_no)
+# 
+# write_csv(sites_inst, "sites_inst_ref_urban.csv")
 
 ```
+
+USE THIS FOR INSTANTANEOUS VALUES
 ```{r}
 param <- "00060" #discharge
 #stat codes max 00001 min 00002 mean 00003
 stat <- "00003"
 
-for(z in 6:7){
-  
-    sitesDL <- sites_inst$site_no[indexes[z]:indexes[z+1]]
-    
-    data <- readNWISuv(siteNumbers = sitesDL, parameterCd = param, startDate = "2000-01-01", endDate = "2000-12-31")
-    
-    for(x in 2001:2010){
+     sitesDL <- sites[1:300]
+    ###change for instantaneous values... daily right now
+     data <- readNWISdv(siteNumbers = sitesDL, parameterCd = param, startDate = "1999-01-01", endDate = "1999-12-31")
+   
+    for(x in 2000:2010){
       start <- paste(x,"-01-01", sep = '')
       end <- paste(x, "-12-31", sep = '')
       
@@ -53,10 +53,11 @@ for(z in 6:7){
       data <- bind_rows(data, datanew)
     }
     
-    write_csv(data, paste("inst_data_2000-2010_ref_urban_", indexes[z], ".csv" ,sep = ''))
+    write_csv(data, paste("daily_data_CONUS_1999-2010_300", indexes[z], ".csv" ,sep = ''))
 
-}
+
 ```
+
 ```{r}
 #create daily summaries
 
@@ -93,5 +94,34 @@ for(t in 1:7){
 }
 
 write_csv(data, "all_ref_sites_daily_stats.csv")
+```
+DAILY VALUES
+```{r}
+param <- "00060" #discharge
+#stat codes max 00001 min 00002 mean 00003
+stat <- "00003"
+
+     
+  data <- readNWISdv(siteNumbers = sites[701], parameterCd = param, startDate = "1999-01-01", endDate = "2010-12-31")
+   
+   for(x in 702:1148){ #length(sites)){
+    
+      datanew <- readNWISdv(siteNumbers = sites[x], parameterCd = param, startDate = "1999-01-01", endDate = "2010-12-31")
+      
+      data <- bind_rows(data, datanew)
+
+    }
+    write_csv(data, paste("daily_data_CONUS_1999-2010_to1148.csv" ,sep = ''))
+
+
+```
+
+```{r}
+#combine two data files
+data1 <- read_csv("daily_data_CONUS_1999-2010_to700.csv")
+
+data <- bind_rows(data, data1)
+
+write_csv(data, "daily_data_CONUS_1999-2010.csv")
 ```
 
