@@ -63,4 +63,3 @@ results <- step.model$results
 sumreg <- summary(step.model$finalModel)
 write.csv(sumreg$outmat, "multipleregression_output_6NOV2020_allsites.csv")
 ```
-

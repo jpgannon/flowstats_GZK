@@ -20,17 +20,24 @@ library(patchwork)
 ```{r}
 #load data
 #stats_attr <- read_csv("stats_ranks_attributes_per_site_all.csv")
-stats_attr <- read_csv("stats_ranks_attributes_per_site_kgc.csv")
+stats_attr <- read_csv("stats_ranks_attributes_per_site_all.csv")
 paramTypes <- read_csv("paramsForRF.csv")
 #set up data for regression
-forRF <- stats_attr %>% 
-  #filter(RBpaperSize == 'a') %>%
-  dplyr::select(-site_no, -RBIrank, -STANAME, -HUC02, -STATE, -CLASS, -AGGECOREGION,
-                -wy2000, -wy2001, -wy2002,-wy2003, -wy2004, -wy2005,-wy2006, -wy2007,
-                -wy2008,-wy2009, -GEOL_REEDBUSH_DOM, -ADR_CITATION, -SCREENING_COMMENTS, 
-                -Type, -RBpaperSize, -newSize, -LAT_GAGE, -LNG_GAGE, -WR_REPORT_REMARKS,
-               -FLOWYRS_1990_2009, -wy00_09) %>%
-  filter(KGC == "Cfb")
+forRFall <- stats_attr %>% 
+  dplyr::select(-site_no, -RBIrank, -STATE, -CLASS, -LAT_GAGE, -LNG_GAGE,
+                 -RBpaperSize, -newSize) %>%
+  drop_na()#1132
+
+KGCs <- c("BSk","Cfa","Cfb","Csa","Csb","Dfa",
+            "Dfb","Dfc","Dsb")
+#KGCs defined below
+forRFall %>% filter(KGC %in% KGCs) %>% group_by(KGC) %>%
+  summarize(numberofsites = length(RBI))
+
+length(unique(forRFall$STANAME))
+
+#forRFall %>% group_by(Type) %>%
+ # summarize(numberofsites = length(STANAME))
 ```
 
 <https://uc-r.github.io/random_forests>
@@ -76,13 +83,8 @@ for(f in 1:9){
   KGCs <- c("BSk","Cfa","Cfb","Csa","Csb","Dfa",
             "Dfb","Dfc","Dsb")
   
-  forRF <- stats_attr %>% 
+  forRF <- forRFall %>% 
   #filter(RBpaperSize == 'a') %>%
-  dplyr::select(-site_no, -RBIrank, -STANAME, -HUC02, -STATE, -CLASS, -AGGECOREGION,
-                -wy2000, -wy2001, -wy2002,-wy2003, -wy2004, -wy2005,-wy2006, -wy2007,
-                -wy2008,-wy2009, -GEOL_REEDBUSH_DOM, -ADR_CITATION, -SCREENING_COMMENTS, 
-                -Type, -RBpaperSize, -newSize, -LAT_GAGE, -LNG_GAGE, -WR_REPORT_REMARKS,
-               -FLOWYRS_1990_2009, -wy00_09) %>%
   filter(KGC == KGCs[f])
   
     hyper_grid %>% 
@@ -98,8 +100,8 @@ for(f in 1:9){
         formula         = RBI ~ ., 
         data            = forRF, 
         num.trees       = 500,
-        mtry            = 28,
-        min.node.size   = 3,
+        mtry            = 8, #was 26
+        min.node.size   = 3, #was 5
         sample.fraction = .8,
         importance      = 'impurity'
       )
@@ -133,25 +135,27 @@ for(f in 1:9){
     if(f != 1) AllImportances <- bind_rows(AllImportances, importances)
 }
 
-AllImportances <- AllImportances %>% left_join(paramTypes, by = c("param"="Params"))
+AllImportances <- AllImportances %>% 
+  bind_rows(importancesAll) %>%
+  left_join(paramTypes, by = c("param"="Params"))
 ```
 
 
 ```{r}
-top10pred <- AllImportances %>%
-  group_by(KGC) %>%
-  dplyr::slice_max(importance, n = 10)
-
-
-top10pred %>% 
-    ggplot(aes(param,importance, fill =  Type))+
-      geom_col()+
-      coord_flip()+
-      scale_fill_brewer(palette="Accent")+
-      theme_minimal()+
-      xlab("KGC")+
-      ylab("Importance")+
-      facet_wrap(vars(KGC), scales = "free")
+ top10pred <- AllImportances %>%
+   group_by(KGC) %>%
+   dplyr::slice_max(importance, n = 10)
+# 
+# 
+# top10pred %>% 
+#     ggplot(aes(param,importance, fill =  Type))+
+#       geom_col()+
+#       coord_flip()+
+#       scale_fill_brewer(palette="Accent")+
+#       theme_minimal()+
+#       xlab("KGC")+
+#       ylab("Importance")+
+#       facet_wrap(vars(KGC), scales = "free")
 
 KGCkey <- top10pred %>%
   ggplot(aes(KGC,1, fill = KGC))+
@@ -179,5 +183,6 @@ KGCbarstack <- top10pred %>%
 
 RFsummary_KGCs <- KGCkey + KGCbarstack + plot_layout(widths = c(.2,4))
 
+RFsummary_KGCs
 ```
 

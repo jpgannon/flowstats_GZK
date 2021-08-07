@@ -3,15 +3,17 @@ title: "R Notebook"
 output: html_notebook
 ---
 ```{r}
-ptype <- "png"
+ptype <- "eps"
 ```
 
 Save figures
 
+Make map of RBI and of CV for all sites
+
 Figure 1. Map of sites colored by KGC map with table
 From RMD: cfs general stats
 ```{r}
-ggsave("Figure1_pts_map.png", site_table, 
+ggsave("Figure1_pts_map.eps", site_table, 
        device = ptype, path = "OutputPlots/",
        width = 10,
        height = 10,
@@ -21,7 +23,7 @@ ggsave("Figure1_pts_map.png", site_table,
 Figure 2. Example Timeseries
 From RMD: example_discharge
 ```{r}
-ggsave("Figure2_ex_ts.png", EX_ts_flashy, 
+ggsave("Figure2_ex_ts.eps", EX_ts_flashy, 
        device = ptype, path = "OutputPlots/",
        width = 6,
        height = 4,
@@ -29,9 +31,16 @@ ggsave("Figure2_ex_ts.png", EX_ts_flashy,
 ```
 
 Figure 3. Violin plots of RB paper sizes
+CONUS points
 From RMD: cdfs general stats
 ```{r}
-ggsave("Figure3_rb_violins.png", rbviolins, 
+ggsave("Figure3_rb_violins.eps", rbviolins, 
+       device = ptype, path = "OutputPlots/",
+       width = 6,
+       height = 4,
+       units = "in")
+
+ggsave("Figure_CONUS_pts.eps", rbviolins, 
        device = ptype, path = "OutputPlots/",
        width = 6,
        height = 4,
@@ -41,17 +50,26 @@ ggsave("Figure3_rb_violins.png", rbviolins,
 Figure 4. RB paper size boxplots with KGC map
 From RMD: cdfs general stats
 ```{r}
-ggsave("Figure4_map_rbboxplots.png", KGmap_RBboxplots, 
+ggsave("Figure4_map_rbboxplots.eps", KGmap_RBboxplots, 
        device = ptype, path = "OutputPlots/",
        width = 7,
        height = 8,
        units = "in")
 ```
+Figure 4-2. Size v. RBI
+```{r}
+ggsave("Figure4_2_RBI_Size_Scatter.eps",sizeRBI, 
+       device = ptype, path = "OutputPlots/",
+       width = 6,
+       height = 5,
+       units = "in")
+```
+
 
 Figure 5. Size v RBI point clouds with linear fits and map
 From RMD: cdfs general stats
 ```{r}
-ggsave("Figure5_map_points.png", KGmap_points, 
+ggsave("Figure5_map_points.eps", KGmap_points, 
        device = ptype, path = "OutputPlots/",
        width = 7,
        height = 8,
@@ -61,7 +79,7 @@ ggsave("Figure5_map_points.png", KGmap_points,
 Figure 6. Slope v. RBI
 from RMD: cdfs general stats
 ```{r}
-ggsave("Figure6_slope_rbi.png", SLOPEkgc, 
+ggsave("Figure6_slope_rbi.eps", SLOPEkgc, 
        device = ptype, path = "OutputPlots/",
        width = 6,
        height = 4,
@@ -71,7 +89,7 @@ ggsave("Figure6_slope_rbi.png", SLOPEkgc,
 Figure 7. Developed land v. RBI
 from RMD: cdfs general stats
 ```{r}
-ggsave("Figure7_devland_rbi.png", devlandRBI, 
+ggsave("Figure7_devland_rbi.eps", devlandRBI, 
        device = ptype, path = "OutputPlots/",
        width = 6,
        height = 4,
@@ -82,7 +100,7 @@ Figure 8. RF predictors v importance for all sites colored by "Type"
 in: random forest
 ```{r}
 #some variables are the same in this and the per KGC RF, so be sure to re-run
-ggsave("Figure8_RF_import_CONUS.png", RF_import_ALL, 
+ggsave("Figure8_RF_import_CONUS.eps", RF_import_ALL, 
        device = ptype, path = "OutputPlots/",
        width = 7,
        height = 8,
@@ -92,7 +110,52 @@ ggsave("Figure8_RF_import_CONUS.png", RF_import_ALL,
 Figure 9. RF predictor categories for KGCs, include map as top panel
 in: random forest PER KGC
 ```{r}
-ggsave("Figure9_RFsums_perKGC.png", RFsummary_KGCs, 
+ggsave("Figure9_RFsums_perKGC.eps", RFsummary_KGCs, 
+       device = ptype, path = "OutputPlots/",
+       width = 6,
+       height = 4,
+       units = "in")
+```
+
+Figure 10. Points on a map colored by RBI
+```{r}
+ggsave("Figure10_RBI_map.eps", RBImap, 
+       device = ptype, path = "OutputPlots/",
+       width = 10,
+       height = 6,
+       units = "in")
+```
+
+Figure 11. Points on a map colored by log RBI
+```{r}
+ggsave("Figure11_logRBI_map.eps", RBImaplog, 
+       device = ptype, path = "OutputPlots/",
+       width = 10,
+       height = 6,
+       units = "in")
+```
+
+Figure 12. Points on a map colored by RBI CV
+```{r}
+ggsave("Figure12_RBI_cv_map.eps", RBImapCV, 
+       device = ptype, path = "OutputPlots/",
+       width = 10,
+       height = 6,
+       units = "in")
+```
+
+Figure 13. Points on a map colored by ref non ref
+```{r}
+ggsave("Figure13_ref_nonref_map.eps", ReferenceSiteMap, 
+       device = ptype, path = "OutputPlots/",
+       width = 10,
+       height = 6,
+       units = "in")
+```
+
+Figure 14. cv of RBI vs drainage area log scale
+```{r}
+ggsave("Figure14_RBIvsVSdrainage.eps", RBIcvVSdrainage, 
        device = ptype, path = "OutputPlots/",
        width = 6,
        height = 4,

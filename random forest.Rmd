@@ -11,6 +11,7 @@ library(ranger)       # a faster implementation of randomForest
 library(caret)        # an aggregator package for performing many machine learning models
 library(h2o)          # an extremely fast java-based platform
 library(RColorBrewer)
+library(corrplot)
 
 ```
 
@@ -19,16 +20,33 @@ library(RColorBrewer)
 ```{r}
 #load data
 #stats_attr <- read_csv("stats_ranks_attributes_per_site_all.csv")
-stats_attr <- read_csv("stats_ranks_attributes_per_site_kgc.csv")
+stats_attr <- read_csv("stats_ranks_attributes_per_site_all.csv")
 paramTypes <- read_csv("paramsForRF.csv")
 #set up data for regression
 forRF <- stats_attr %>% 
+  dplyr::select(-site_no, -RBIrank, -STATE, -CLASS, -LAT_GAGE, -LNG_GAGE,
+                 -RBpaperSize, -newSize) %>%
+  drop_na() #goes from 1144 to 1132
+
+
   #filter(RBpaperSize == 'a') %>%
-  dplyr::select(-site_no, -RBIrank, -STANAME, -HUC02, -STATE, -CLASS, -AGGECOREGION,
-                -wy2000, -wy2001, -wy2002,-wy2003, -wy2004, -wy2005,-wy2006, -wy2007,
-                -wy2008,-wy2009, -GEOL_REEDBUSH_DOM, -ADR_CITATION, -SCREENING_COMMENTS, 
-                -Type, -RBpaperSize, -newSize, -LAT_GAGE, -LNG_GAGE, -WR_REPORT_REMARKS,
-               -FLOWYRS_1990_2009, -wy00_09)
+ #dplyr::select(-site_no, -RRBIbreaksGECOREGION,
+    #            -wy2000, -wy2001, -wy2002,-wy2003, -wy2004, -wy2005,-wy2006, -wy2007,
+    #            -wy2008,-wy2009, -GEOL_REEDBUSH_DOM, -ADR_CITATION, -SCREENING_COMMENTS, #
+    #            -Type, -RBpaperSize, -newSize, -LAT_GAGE, -LNG_GAGE, -WR_REPORT_REMARKS,
+     #          -FLOWYRS_1990_2009, -wy00_09)
+
+#CORRELATION COEFFICIENTS
+correlations <- forRF %>% dplyr::select(-RBI, -AGGECOREGION, -GEOL_REEDBUSH_DOM, -KGC) %>% cor() 
+
+correlations[upper.tri(correlations)] <- 0
+
+corrplot(correlations, type = "upper")
+
+index <- which(abs(correlations) > 0.7 & correlations != 1, 
+               arr.ind = T) 
+corrs <- cbind.data.frame(name1 = rownames(correlations)[index[,1]], 
+                 name2 = colnames(correlations)[index[,2]]) 
 ```
 
 <https://uc-r.github.io/random_forests>
@@ -38,7 +56,8 @@ Figure out how many tries, node size, sample fraction
 ```{r}
 # hyperparameter grid search
 hyper_grid <- expand.grid(
-  mtry       = seq(20, 30, by = 2),
+  #mtry       = seq(20, 30, by = 2), #mtry should be square of available params (35)
+  mtry       = seq(4,8, by = 1),
   node_size  = seq(3, 9, by = 2),
   sampe_size = c(.55, .632, .70, .80),
   OOB_RMSE   = 0
@@ -80,8 +99,8 @@ for(i in seq_along(OOB_RMSE)) {
     formula         = RBI ~ ., 
     data            = forRF, 
     num.trees       = 500,
-    mtry            = 28,
-    min.node.size   = 3,
+    mtry            = 8, #was 26
+    min.node.size   = 3, #was 5
     sample.fraction = .8,
     importance      = 'impurity'
   )
@@ -93,6 +112,13 @@ hist(OOB_RMSE, breaks = 20)
 ```
 
 ```{r}
+#for perKGC plot
+importancesAll <- optimal_ranger$variable.importance %>% 
+      as_tibble() %>% 
+      bind_cols(names(optimal_ranger$variable.importance)) %>%
+      rename(importance = value, param = '...2') %>%
+      mutate(KGC = "All")
+
 RF_import_ALL <- optimal_ranger$variable.importance %>% 
   tidy() %>%
   left_join(paramTypes, by = c("names" = "Params")) %>%
@@ -106,4 +132,5 @@ RF_import_ALL <- optimal_ranger$variable.importance %>%
   xlab("Predictors")+
   ylab("Importance")
   
+RF_import_ALL
 ```

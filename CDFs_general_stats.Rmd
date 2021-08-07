@@ -12,12 +12,18 @@ library(gridExtra)
 library(rgdal)
 library(raster)
 library(RColorBrewer)
+library(broom)
+library(nlme)
+library(ggsn)
 
-info <- read_csv("Sites_May2020_CONUS.csv")
+info <- read_csv("Sites_Jan2021_CONUS.csv") %>%
+  mutate(STAID = as.character(STAID))
 
-ranks <- read_csv("RanksAndSummaries_all_sites_CONUS.csv")
+info$STAID[1:899] <- paste0("0",info$STAID[1:899])
 
-yearlystats <- read_csv("YearlyStats_all_CONUS.csv")
+ranks <- read_csv("RanksAndSummaries_all_sites_CONUS_cvs.csv")
+
+yearlystats <- read_csv("YearlyStats_all_CONUS_by_wyear.csv")
 
 allstats <- left_join(yearlystats, info, by = c("site_no" = "STAID"))
 #add size classes
@@ -41,13 +47,21 @@ ranks <- ranks %>%
   mutate(RBpaperSize = cut(DRAIN_SQKM, breaks = RBIbreaks, labels = RBInames)) %>%
   mutate(newSize = cut(DRAIN_SQKM, breaks = Breaks, labels = Breaksnames))
 
-write_csv(ranks, "stats_ranks_attributes_per_site_all.csv")
+#write_csv(ranks, "stats_ranks_attributes_per_site_all.csv")
 
+#can't find original KGC definitions but they are in here
+#just pulls out the sites and KGC associated
+getKGCs <- read_csv("stats_ranks_attributes_per_site_kgc.csv") %>%
+  dplyr::select(site_no, KGC)
 
+ranks2 <- ranks %>% left_join(getKGCs, by = "site_no")
+write_csv(ranks2, "stats_ranks_attributes_per_site_all.csv")
 ```
 
 ```{r}
-ranks <- read_csv("stats_ranks_attributes_per_site_kgc.csv")
+#ranks <- read_csv("stats_ranks_attributes_per_site_kgc.csv")
+ranks <- read_csv("stats_ranks_attributes_per_site_all.csv")
+
 KGClu <- read_csv("KGC_LU_table.csv")
 
 # function for number of observations 
@@ -84,6 +98,16 @@ rbviolins <- ranks %>% # filter(CLASS == "Ref") %>%
                                                        "e 2600-7800",
                                                        "f 7800-30000"))
 
+conusPTS <- ranks %>% # filter(CLASS == "Ref") %>%
+  ggplot(aes(y=RBI,x=DRAIN_SQKM, alpha = 0.2))+
+    geom_point()+
+    theme_classic()+
+    xlab("Watershed size (sqKm)")+
+  scale_x_log10()+
+  stat_smooth(method = 'lm', color = "black")
+  
+
+
 ranks %>% # filter(CLASS == "Ref") %>%
   ggplot(aes(y=RBI,x=DRAIN_SQKM, color = KGC))+
     geom_point()+
@@ -110,7 +134,7 @@ sizeKGCsum <- ranks %>%
   group_by(RBpaperSize, KGC) %>%
   dplyr::summarise(count = length(site_no), meanrbi = mean(RBI))
 
-PerKGC <- ranks %>%
+PerKGC <- ranks2 %>%
   group_by(KGC) %>%
   dplyr::summarise(count = length(site_no), meanrbi = mean(RBI))
 
@@ -193,10 +217,25 @@ devlandRBI <- ranks %>% filter(KGC %in% KGCsOver10) %>%
   scale_color_brewer(palette="Paired")
 
 
+PETkgc <- ranks %>% filter(KGC %in% KGCsOver10) %>%
+  ggplot(aes(x = PET, y = RBI, color = KGC))+
+  geom_point()+
+  theme_classic()+
+  xlab("PET")+
+  facet_wrap(vars(KGC))+
+  theme(legend.position = "none")+
+  scale_color_brewer(palette="Paired")
 
+PETRBI <- ranks %>% filter(KGC %in% KGCsOver10) %>%
+  ggplot(aes(x = PET, y = RBI))+
+  geom_point()+
+  theme_classic()+
+  xlab("PET")
+PETRBI
+  
+PETkgc
 
-
-PTSkgc
+ PTSkgc
 bpkgc
 ```
 
@@ -251,13 +290,25 @@ KGmap <- ggplot()+
   ylab("Latitude (deg)")+
   xlab("Longitude (deg)")
 
-KGmapPTScolor <- ggplot()+
-  geom_polygon(data = cstates, aes(x = long, y = lat, group = group), 
-               colour = "black", fill = NA)+
-  theme_classic()+
-  ylab("Latitude (deg)")+
-  xlab("Longitude (deg)")
+# KGmapPTScolor <- ggplot()+
+#   geom_sf(data = cstates, aes(x = long, y = lat, group = group), 
+#                colour = "black", fill = NA)+
+#   theme_classic()+
+#   ylab("Latitude (deg)")+
+#   xlab("Longitude (deg)")
+
+cstatessf <- sf::st_as_sf(cstates)
  
+KGmapPTScolor <- ggplot()+
+  geom_sf(data = cstatessf, fill = NA)+
+  theme_classic()+
+  ylab(element_blank())+
+  xlab(element_blank())+
+  ggsn::scalebar(cstatessf, dist = 500, dist_unit = "km",
+             transform = TRUE, model = "WGS84", st.size = 3)
+ 
+KGmapPTScolor
+
 ```
 
 ## Map AND RBI plots
@@ -286,4 +337,105 @@ sitesmap
 site_table <- sitesmap/table + plot_layout(heights = c(4,2))
   
 site_table
+```
+
+color points by RBI
+
+```{r}
+RBImap <- KGmapPTScolor +
+  geom_point(data = filter(ranks, KGC %in% KGCsOver10), 
+             aes(y = LAT_GAGE, x = LNG_GAGE, fill = RBI),
+             size = 2, shape = 21)+
+      scale_fill_viridis()
+
+RBImap
+```
+color points by logged RBI 
+
+```{r}
+RBImaplog <- KGmapPTScolor +
+  geom_point(data = filter(ranks, KGC %in% KGCsOver10), 
+             aes(y = LAT_GAGE, x = LNG_GAGE, fill = log10(RBI)),
+             size = 2, shape = 21)+
+      scale_fill_viridis()
+
+RBImaplog
+```
+
+color points by RBI CV
+
+```{r}
+RBImapCV <- KGmapPTScolor +
+  geom_point(data = filter(ranks, KGC %in% KGCsOver10), 
+             aes(y = LAT_GAGE, x = LNG_GAGE, fill = log10(RBIcv)),
+             size = 2, shape = 21)+
+  scale_fill_viridis(breaks = c(0, -0.5, -1), 
+                     labels = round(10 ^ (c(0,-0.5,-1)), 2),
+                     "cv of RBI")
+
+RBImapCV
+```
+## egression results
+
+## RBI cv vs size
+```{r}
+ranks2 %>%
+  ggplot(aes(x = log10(DRAIN_SQKM), y = RBIcv, color = KGC))+
+  geom_point(alpha = 0.6)+
+  theme_classic()
+```
+
+```{r}
+ranks2 %>%filter(KGC %in% KGCsOver10) %>%
+  ggplot(aes(x = RBIcv, color = KGC))+
+  geom_density(alpha = 0.6)+
+  theme_classic()+
+  scale_color_brewer(palette = "Paired")
+```
+
+```{r}
+AllLM <- lm(RBI~DRAIN_SQKM, ranks)
+
+summary(AllLM)
+
+ranksNONA <- ranks %>% drop_na() %>% ungroup() %>% 
+  dplyr::select(RBI, DRAIN_SQKM, KGC)
+
+
+regressions <- ranksNONA %>% nest(data = -KGC) %>%
+  mutate(
+    fit = map(data, ~lm(RBI ~ DRAIN_SQKM, data = .x)),
+    tidied = map(fit, tidy),
+    glanced = map(fit, glance),
+    augmented = map(fit, augment)
+  ) 
+
+
+regrR2 <- regressions %>% unnest(glanced) %>%
+  dplyr::select(KGC, r.squared, adj.r.squared, p.value)
+
+write_csv(regrR2, "regression_results_per_KGC.csv")
+```
+color points by ref or non ref
+
+```{r}
+refsitedata <- filter(ranks, KGC %in% KGCsOver10) %>%
+  drop_na(CLASS)
+
+ReferenceSiteMap <- KGmapPTScolor +
+  geom_point(data = refsitedata,
+             aes(y = LAT_GAGE, x = LNG_GAGE, fill = CLASS),
+             size = 2, shape = 21)+
+  scale_fill_manual(values = c("red", "grey", "white"))
+
+ReferenceSiteMap
+```
+```{r}
+RBIcvVSdrainage <- ranks2 %>%
+  ggplot(aes(x = DRAIN_SQKM, y = RBIcv))+
+  geom_point()+
+  theme_classic()+
+  scale_x_continuous(trans = "log10")
+
+RBIcvVSdrainage
 ```

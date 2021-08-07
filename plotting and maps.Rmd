@@ -13,11 +13,13 @@ library(lubridate)
 ```{r}
 library(patchwork)
 library(rgdal)
-info <- read_csv("Sites_May2020_CONUS.csv")
+info <- read_csv("Sites_Jan2021_CONUS.csv")
 
-ranks <- read_csv("RanksAndSummaries_all_sites_CONUS.csv")
+ranks <- read_csv("RanksAndSummaries_all_sites_CONUS_cvs.csv") %>%
+  mutate(site_no = as.numeric(site_no))
 
-yearlystats <- read_csv("YearlyStats_all_CONUS.csv")
+yearlystats <- read_csv("YearlyStats_all_CONUS.csv")%>%
+  mutate(site_no = as.numeric(site_no))
 
 allstats <- left_join(yearlystats, info, by = c("site_no" = "STAID"))
 #add size classes
@@ -39,7 +41,7 @@ ranks <- ranks %>%
   mutate(RBpaperSize = cut(DRAIN_SQKM, breaks = RBIbreaks, labels = RBInames)) %>%
   mutate(newSize = cut(DRAIN_SQKM, breaks = Breaks, labels = Breaksnames))
 
-write_csv(ranks, "stats_ranks_attributes_per_site_all.csv")
+write_csv(ranks, "stats_ranks_attributes_per_site_all_NOKGC.csv")
 
 setwd("/Volumes/GoogleDrive/My Drive/flowstats_GZK/cb_2018_us_state_500k")
 states <- readOGR("cb_2018_us_state_500k.shp")
@@ -165,7 +167,7 @@ combined + plot_layout(guides = "collect")
 
 ```{r}
 sizeRBI <- ranks %>% 
-  ggplot(aes(x = DRAIN_SQKM, y = RBI, color = Type)) +
+  ggplot(aes(x = DRAIN_SQKM, y = RBI)) +
   geom_point() +
   ylim(c(0,1.5)) +
   scale_x_log10()+

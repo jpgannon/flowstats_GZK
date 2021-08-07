@@ -17,7 +17,7 @@ info <- read_csv("all_ref_urban.csv")
 
 ranks <- read_csv("RanksAndSummaries_all_sites.csv")
 
-yearlystats <- read_csv("YearlyStats_all_sites.csv")
+yearlystats <- read_csv("YearlyStats_all_CONUS.csv")
 
 allstats <- left_join(yearlystats, info, by = c("site_no" = "STAID"))
 #add size classes
@@ -207,11 +207,16 @@ combined <- (rbpaperplot + newsizeplot) / (rbpaperplotMAX + newsizeplotMAX) & th
 combined + plot_layout(guides = "collect")
 ```
 ```{r}
-sizeRBI <- ranks %>% 
-  ggplot(aes(x = DRAIN_SQKM, y = RBI, color = Type)) +
+
+cols <- c("gray", "red")
+
+sizeRBI <- ranks %>% filter(RBI < 4) %>% #there is an "inf" value...
+  ggplot(aes(x = DRAIN_SQKM, y = RBI, color = Type), alpha = 0.5)+ #, color = Type)) +
   geom_point() +
-  ylim(c(0,1.5)) +
-  scale_x_log10()+
+  #ylim(c(0,7)) +
+  xlab("Drainage Area (sqkm)")+
+  scale_x_log10() +
+  scale_colour_manual(values=cols)+
   theme_classic()
 
 
@@ -226,4 +231,32 @@ sizeRBImax <- ranks %>%
 
 combined <- (sizeRBI + sizeRBImax) & theme(legend.position = "bottom")
 combined + plot_layout(guides = "collect")
+
+sizeRBI
+
 ```
+```{r}
+cstates <- states[!states$STUSPS %in% c("HI","AK","PR","VI","GU","MP","AS"),] 
+
+ranks %>% filter(RBI < 2) %>%
+  ggplot(aes(LNG_GAGE, LAT_GAGE, fill = RBIcv))+
+  geom_polygon(data = cstates, aes(x = long, y = lat, group = group), colour = "black", fill = NA)+
+    geom_point(colour = "black", pch = 21)+
+   # scale_fill_gradient2()+
+  scale_fill_viridis()+
+  
+  theme_classic()
+```
+```{r}
+cstates <- states[!states$STUSPS %in% c("HI","AK","PR","VI","GU","MP","AS"),] 
+
+ranks %>% 
+  ggplot(aes(LNG_GAGE, LAT_GAGE, fill = log10(RBIcv)))+
+  geom_polygon(data = cstates, aes(x = long, y = lat, group = group), colour = "black", fill = NA)+
+    geom_point(colour = "black", pch = 21)+
+   # scale_fill_gradient2()+
+  scale_fill_viridis()+
+  
+  theme_classic()
+```
+
